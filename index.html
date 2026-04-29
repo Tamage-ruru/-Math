@@ -291,29 +291,6 @@ footer .quote{font-family:'Kaisei Decol',serif;font-size:15px;color:var(--ink);m
 .hub-overall .stats{font-size:14px;line-height:1.95}
 .hub-overall .stats b{color:var(--pink-deep)}
 
-.effort-board{
-  background:#fff;border-radius:18px;padding:18px;margin:0 0 24px;
-  border:2px solid var(--teal);box-shadow:var(--shadow);
-}
-.effort-board h2{
-  font-family:'Kaisei Decol',serif;font-size:18px;color:var(--teal-deep);
-  margin-bottom:12px;padding-left:12px;border-left:4px solid var(--teal);
-}
-.effort-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
-.effort-stat{background:#F4FBFA;border:1.5px solid var(--teal-soft);border-radius:12px;padding:10px 8px;text-align:center}
-.effort-stat b{display:block;font-family:'Kaisei Decol',serif;font-size:22px;color:var(--teal-deep);line-height:1.15}
-.effort-stat span{display:block;font-size:11px;color:var(--ink-soft);font-weight:700}
-.effort-grid{display:grid;grid-template-columns:repeat(14,1fr);gap:5px;margin:12px 0}
-.effort-day{aspect-ratio:1;border-radius:7px;background:#F5ECE0;border:1px solid #E0CFC0;position:relative}
-.effort-day[data-level="1"]{background:#D8F0ED;border-color:#97D4CD}
-.effort-day[data-level="2"]{background:#9ED9D2;border-color:#57BDB3}
-.effort-day[data-level="3"]{background:#5DBFB6;border-color:#2B9289}
-.effort-day[data-level="4"]{background:linear-gradient(135deg,var(--teal),var(--teal-deep));border-color:var(--teal-deep)}
-.effort-day.today{outline:2px solid var(--pink);outline-offset:2px}
-.effort-log{background:#FFFAF3;border-radius:12px;padding:12px;border:1.5px dashed #EAD9C8;min-height:48px;font-size:12.5px;color:var(--ink-soft);line-height:1.8}
-.effort-log ul{list-style:none;display:flex;flex-direction:column;gap:4px}
-.effort-log b{color:var(--pink-deep)}
-
 .hub-subj{margin-bottom:24px}
 .hub-subj h2{font-family:'Kaisei Decol',serif;font-size:18px;color:var(--red);margin-bottom:12px;padding-left:12px;border-left:4px solid var(--pink)}
 .subj-badge{display:inline-block;color:#fff;font-size:12px;padding:3px 10px;border-radius:6px;margin-right:8px;font-family:'Zen Maru Gothic',sans-serif;font-weight:700}
@@ -348,7 +325,6 @@ footer .quote{font-family:'Kaisei Decol',serif;font-size:15px;color:var(--ink);m
   .hub-hero h1{font-size:28px}
   .top-bar .ch-nav button{width:26px;height:26px;font-size:10px}
   .hub-overall{flex-direction:column}
-  .effort-stats{grid-template-columns:repeat(2,1fr)}
 }
 </style>
 </head>
@@ -385,18 +361,6 @@ footer .quote{font-family:'Kaisei Decol',serif;font-size:15px;color:var(--ink);m
       <b id="stat-lv">0</b> / 56 レベルクリア
     </div>
   </div>
-
-  <section class="effort-board" aria-label="毎日の努力記録">
-    <h2>毎日の努力記録</h2>
-    <div class="effort-stats">
-      <div class="effort-stat"><b id="effort-today">0</b><span>今日の採点</span></div>
-      <div class="effort-stat"><b id="effort-streak">0</b><span>連続日数</span></div>
-      <div class="effort-stat"><b id="effort-total">0</b><span>合計採点</span></div>
-      <div class="effort-stat"><b id="effort-clears">0</b><span>達成記録</span></div>
-    </div>
-    <div class="effort-grid" id="effort-grid" aria-label="直近14日間の記録"></div>
-    <div class="effort-log" id="effort-log">まだ記録はありません。テストを採点すると、ここに今日の努力が残ります。</div>
-  </section>
 
   <div class="hub-subj">
   <h2><span class="subj-badge" style="background:#6B8E6B">中学復習</span></h2>
@@ -5941,8 +5905,6 @@ function showResult(level, score, total, unanswered){
     html += `<div class="verdict">あと一歩!</div><div class="msg">${msg}</div><button onclick="resetTest(${level})">もう一度挑戦</button>`;
   }
   panel.innerHTML = html;
-  const newlyCleared = passed && !cleared[level];
-  recordEffort(level, score, total, passed, newlyCleared);
   if(passed){
     cleared[level] = true;
     document.getElementById('lv-'+level).classList.add('cleared');
@@ -5988,108 +5950,6 @@ function resetTest(level){
   });
   document.getElementById('result-'+level).classList.remove('show');
   document.getElementById('test-'+level).scrollIntoView({behavior:'smooth', block:'start'});
-}
-
-// ===== DAILY EFFORT LOG =====
-const EFFORT_KEY = 'mathEffort_v1';
-
-function todayKey(offset=0){
-  const d = new Date();
-  d.setHours(0,0,0,0);
-  d.setDate(d.getDate() + offset);
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const day = String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${day}`;
-}
-
-function loadEffort(){
-  try{
-    const raw = localStorage.getItem(EFFORT_KEY);
-    if(raw) return JSON.parse(raw);
-  }catch(e){}
-  return {days:{}, logs:[]};
-}
-
-function saveEffort(data){
-  try{ localStorage.setItem(EFFORT_KEY, JSON.stringify(data)); }catch(e){}
-}
-
-function recordEffort(level, score, total, passed, newlyCleared){
-  const data = loadEffort();
-  const key = todayKey();
-  const day = data.days[key] || {attempts:0, clears:0};
-  day.attempts += 1;
-  if(newlyCleared) day.clears += 1;
-  data.days[key] = day;
-
-  const chTitle = currentChapter && ALL_CHAPTERS[currentChapter] ? ALL_CHAPTERS[currentChapter].title : '学習';
-  data.logs.unshift({
-    date:key,
-    time:new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}),
-    chapter:chTitle,
-    level,
-    score,
-    total,
-    passed,
-    cleared:newlyCleared
-  });
-  data.logs = data.logs.slice(0, 20);
-  saveEffort(data);
-  updateEffortDashboard();
-}
-
-function effortStreak(days){
-  let streak = 0;
-  for(let i=0; i<365; i++){
-    const key = todayKey(-i);
-    if(days[key] && days[key].attempts > 0) streak++;
-    else break;
-  }
-  return streak;
-}
-
-function updateEffortDashboard(){
-  const grid = document.getElementById('effort-grid');
-  if(!grid) return;
-  const data = loadEffort();
-  const today = data.days[todayKey()] || {attempts:0, clears:0};
-  const dayValues = Object.values(data.days);
-  const totalAttempts = dayValues.reduce((sum, d)=>sum + (d.attempts || 0), 0);
-  const totalClears = dayValues.reduce((sum, d)=>sum + (d.clears || 0), 0);
-
-  const setText = (id, value) => {
-    const el = document.getElementById(id);
-    if(el) el.textContent = value;
-  };
-  setText('effort-today', today.attempts || 0);
-  setText('effort-streak', effortStreak(data.days));
-  setText('effort-total', totalAttempts);
-  setText('effort-clears', totalClears);
-
-  grid.innerHTML = '';
-  for(let i=13; i>=0; i--){
-    const key = todayKey(-i);
-    const info = data.days[key] || {attempts:0, clears:0};
-    const level = Math.min(4, info.attempts || 0);
-    const cell = document.createElement('div');
-    cell.className = 'effort-day' + (i===0 ? ' today' : '');
-    cell.dataset.level = String(level);
-    cell.title = `${key}: 採点 ${info.attempts || 0}回 / 達成 ${info.clears || 0}回`;
-    grid.appendChild(cell);
-  }
-
-  const log = document.getElementById('effort-log');
-  if(log){
-    if(!data.logs.length){
-      log.textContent = 'まだ記録はありません。テストを採点すると、ここに今日の努力が残ります。';
-    } else {
-      log.innerHTML = '<ul>' + data.logs.slice(0,5).map(item => {
-        const mark = item.cleared ? '達成' : (item.passed ? '合格' : '挑戦');
-        return `<li><b>${item.time} ${mark}</b> Lv ${item.level} ${item.score}/${item.total} - ${item.chapter}</li>`;
-      }).join('') + '</ul>';
-    }
-  }
 }
 
 // ===== PROGRESS (per-chapter, localStorage) =====
@@ -6223,7 +6083,6 @@ function refreshHubProgress(){
   
   const circ = 2*Math.PI*42;
   document.getElementById('prog-ring').setAttribute('stroke-dasharray', `${(pct/100)*circ} ${circ}`);
-  updateEffortDashboard();
 }
 
 // Init
